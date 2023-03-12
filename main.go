@@ -154,6 +154,7 @@ func (a *app) run() (err error) {
 	// Cleanly close down the Discord session.
 	a.d.Close()
 	return
+
 }
 
 func main() {
