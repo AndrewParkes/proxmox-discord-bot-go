@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/caarlos0/env/v6"
+	"golang.org/x/exp/slices"
 )
 
 /*
@@ -41,7 +43,9 @@ type (
 )
 
 var (
-	commands = []*discordgo.ApplicationCommand{
+	serversFile = "servers.txt"
+	servers     []string
+	commands    = []*discordgo.ApplicationCommand{
 		{
 			Name:        "list",
 			Description: "List servers and status",
@@ -63,10 +67,14 @@ var (
 
 	commandHandlers = map[string]func(s *discordgo.Session, i *discordgo.InteractionCreate){
 		"list": func(s *discordgo.Session, i *discordgo.InteractionCreate) {
+			serversOut := "Servers:"
+			for _, server := range servers {
+				serversOut += "\r" + server
+			}
 			s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
 				Type: discordgo.InteractionResponseChannelMessageWithSource,
 				Data: &discordgo.InteractionResponseData{
-					Content: "some server data",
+					Content: serversOut,
 				},
 			})
 		},
@@ -75,6 +83,15 @@ var (
 
 			msgformat := "Started Server: "
 			for _, opt := range options {
+				if !slices.Contains(servers, opt.StringValue()) {
+					s.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+						Type: discordgo.InteractionResponseChannelMessageWithSource,
+						Data: &discordgo.InteractionResponseData{
+							Content: opt.StringValue() + " does not exist.",
+						},
+					})
+					return
+				}
 				msgformat += "\n" + opt.StringValue()
 			}
 
@@ -88,7 +105,28 @@ var (
 	}
 )
 
+func (a *app) initServers() (err error) {
+	file, err := os.Open(serversFile)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		servers = append(servers, scanner.Text())
+	}
+	return nil
+}
+
 func (a *app) init() (err error) {
+
+	a.initServers()
+	if err != nil {
+		fmt.Println("read servers", err)
+		return
+	}
+
 	a.d, err = discordgo.New("Bot " + a.DiscordConf.Token)
 	if err != nil {
 		fmt.Println("error creating Discord session,", err)
