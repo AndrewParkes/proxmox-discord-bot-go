@@ -170,6 +170,7 @@ func (a *app) run() (err error) {
 		fmt.Println("error opening connection,", err)
 		return
 	}
+	defer a.d.Close()
 
 	fmt.Println("Adding commands...")
 	registeredCommands := make([]*discordgo.ApplicationCommand, len(commands))
@@ -181,18 +182,13 @@ func (a *app) run() (err error) {
 		registeredCommands[i] = cmd
 	}
 
-	defer a.d.Close()
-
 	// Wait here until CTRL-C or other term signal is received.
 	fmt.Println("Bot is now running.  Press CTRL-C to exit.")
 	sc := make(chan os.Signal, 1)
 	signal.Notify(sc, syscall.SIGINT, syscall.SIGTERM, os.Interrupt)
 	<-sc
 
-	// Cleanly close down the Discord session.
-	a.d.Close()
 	return
-
 }
 
 func main() {
